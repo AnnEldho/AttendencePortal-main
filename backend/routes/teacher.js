@@ -2,7 +2,18 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 
-// Students (optionally filtered by class)
+//time table
+router.get('/timetable', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT t.id, t.class_id, t.period_no, t.day_of_week, t.teacher_id, t.subject_id, s.name AS subject_name FROM timetable t LEFT JOIN subjects s ON t.subject_id = s.id ORDER BY t.class_id, t.day_of_week, t.period_no'
+    );
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ message: 'Error' });
+  } 
+});
+
 
 router.post('/students', async (req, res) => {
   const { admission_no, name, password, class_id } = req.body;

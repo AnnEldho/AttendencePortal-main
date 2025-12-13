@@ -4,6 +4,12 @@ import AttendanceManager from './TeacherAttendanceManager';
 
 function TeacherDashboard({ teacher, onLogout }) {
   const [activeTab, setActiveTab] = useState('attendance');
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const d = new Date(selectedDate + 'T00:00:00');
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const dayName = days[d.getDay()];
+  const dateStr = selectedDate;
+  const isWeekend = d.getDay() === 0 || d.getDay() === 6;
 
   return (
     <div className="min-h-screen w-screen flex bg-slate-100">
@@ -46,8 +52,9 @@ function TeacherDashboard({ teacher, onLogout }) {
         <div className="px-4 py-3 border-t border-sky-800 text-[11px] text-sky-100/90">
           Logged in as
           <div className="font-medium text-sky-50">
-            {teacher.emp_id}
+            {teacher && teacher.name ? teacher.name : teacher.emp_id}
           </div>
+          <div className="text-sky-100/90 text-[11px]">{teacher && teacher.emp_id ? teacher.emp_id : ''}</div>
           <button
             onClick={onLogout}
             className="mt-2 inline-flex items-center justify-center px-3 py-1.5 rounded-md bg-sky-200 text-sky-900 text-[11px] font-semibold hover:bg-white"
@@ -61,7 +68,7 @@ function TeacherDashboard({ teacher, onLogout }) {
         <header className="h-14 flex items-center justify-between px-4 md:px-8 border-b border-slate-200 bg-sky-800 text-sky-50">
           <div className="flex items-center gap-2">
             <div className="md:hidden inline-flex h-8 w-8 items-center justify-center rounded-full bg-sky-200 text-sky-900 text-xs font-semibold">
-              T
+              {teacher && teacher.name ? teacher.name.split(' ').map(n=>n[0]).slice(0,2).join('') : 'T'}
             </div>
             <div>
               <h4 className="text-sm font-semibold tracking-tight">
@@ -70,12 +77,13 @@ function TeacherDashboard({ teacher, onLogout }) {
               <p className="text-[11px] text-sky-100/90">
                 Mark attendance and manage students
               </p>
+              
             </div>
           </div>
           <div className="flex items-center gap-3 text-[11px]">
             <div className="hidden sm:block text-right">
-              <div className="font-medium text-sky-50">{teacher.emp_id}</div>
-              <div className="text-sky-100/90">Teacher</div>
+              <div className="font-medium text-sky-50">{teacher && teacher.name ? teacher.name : teacher.emp_id}</div>
+              <div className="text-sky-100/90">{teacher && teacher.emp_id ? teacher.emp_id + ' • Teacher' : 'Teacher'}</div>
             </div>
             <button
               onClick={onLogout}
@@ -87,8 +95,17 @@ function TeacherDashboard({ teacher, onLogout }) {
         </header>
 
         <main className="flex-1 overflow-y-auto px-4 md:px-8 py-5 bg-slate-50">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-slate-800">Welcome{teacher && teacher.name ? `, ${teacher.name}` : ''}</h2>
+            <div className="text-sm text-slate-600 mt-1">Day: {dayName}{dateStr && ` - ${dateStr}`}</div>
+            {isWeekend && (
+              <div className="mt-3 inline-block px-3 py-2 rounded bg-yellow-50 text-yellow-800 font-medium">
+                No class is scheduled
+              </div>
+            )}
+          </div>
           {activeTab === 'attendance' && (
-            <AttendanceManager />
+            <AttendanceManager date={selectedDate} setDate={setSelectedDate} />
           )}
           {activeTab === 'students' && (
             <StudentManager />

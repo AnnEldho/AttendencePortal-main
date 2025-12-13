@@ -80,5 +80,48 @@ router.get('/periods', async (req, res) => {
   }
 });
 
+// Return per-subject attendance stats for a student
+router.get('/subject-stats/:id', async (req, res) => {
+  const { id } = req.params; // student id
+  const { from, to } = req.query;
+  try {
+    // get student's class
+    const [[stu]] = await pool.query('SELECT class_id FROM students WHERE id = ?', [id]);
+    if (!stu) return res.status(404).json({ message: 'Student not found' });
+    const classId = stu.class_id;
+
+    let sql = `SELECT IFNULL(s.id, 0) AS subject_id, IFNULL(s.name, 'Unassigned') AS subject,
+      COUNT(*) AS total, SUM(a.status = 'present') AS present
+      FROM attendance a
+      JOIN timetable t ON t.class_id = ? AND t.period_no = a.period_no AND t.day_of_week = DAYNAME(a.date)
+      LEFT JOIN subjects s ON s.id = t.subject_id
+      WHERE a.student_id = ?`;
+    const params = [classId, id];
+    if (from) {
+      sql += ' AND a.date >= ?';
+      params.push(from);
+    }
+    if (to) {
+      sql += ' AND a.date <= ?';
+      params.push(to);
+    }
+    sql += ' GROUP BY subject_id, subject ORDER BY subject';
+
+    const [rows] = await pool.query(sql, params);
+    // compute percentage
+    const result = rows.map(r => ({
+      subject_id: r.subject_id,
+      subject: r.subject,
+      total: Number(r.total),
+      present: Number(r.present),
+      percentage: r.total ? Math.round((r.present / r.total) * 100) : 0
+    }));
+    res.json(result);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Error' });
+  }
+});
+
 
 module.exports = router;

@@ -6,7 +6,7 @@ router.post('/teacher-login', async (req, res) => {
   const { emp_id, password } = req.body;
   try {
     const [rows] = await pool.query(
-      'SELECT id, emp_id FROM teachers WHERE emp_id = ? AND password = ?',
+      'SELECT id, emp_id, name FROM teachers WHERE emp_id = ? AND password = ?',
       [emp_id, password]
     );
     if (!rows.length) return res.status(401).json({ message: 'Invalid' });

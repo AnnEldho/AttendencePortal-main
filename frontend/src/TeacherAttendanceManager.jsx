@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react';
 import api from './api';
 
-function TeacherAttendanceManager() {
+function TeacherAttendanceManager({ date: propDate, setDate: propSetDate }) {
   const [classes, setClasses] = useState([]);
   const [selectedClassId, setSelectedClassId] = useState('');
   const [students, setStudents] = useState([]);
   const [periods, setPeriods] = useState([]);
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [timetable, setTimetable] = useState([]);
+  const [allowedPeriods, setAllowedPeriods] = useState(new Set());
+  const [localDate, setLocalDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const date = propDate !== undefined ? propDate : localDate;
+  const setDate = propSetDate !== undefined ? propSetDate : setLocalDate;
   const [attMap, setAttMap] = useState({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -20,12 +24,14 @@ function TeacherAttendanceManager() {
   };
 
   const loadInitial = async () => {
-    const [clsRes, perRes] = await Promise.all([
+    const [clsRes, perRes, ttRes] = await Promise.all([
       api.get('/teacher/classes'),
-      api.get('/teacher/periods')
+      api.get('/teacher/periods'),
+      api.get('/teacher/timetable')
     ]);
     setClasses(clsRes.data);
     setPeriods(perRes.data);
+    setTimetable(ttRes.data || []);
   };
 
   const loadData = async (classId, selectedDate) => {
@@ -53,6 +59,24 @@ function TeacherAttendanceManager() {
           r.status === 'present' || r.status === 'absent' ? r.status : 'unmarked';
       });
       setAttMap(map);
+      // compute allowed periods for logged-in teacher for this class/date
+      try {
+        const saved = JSON.parse(localStorage.getItem('attendance_user') || '{}');
+        const teacher_id = saved && saved.teacher ? saved.teacher.id : null;
+        const d = new Date(selectedDate + 'T00:00:00');
+        const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+        const dayName = days[d.getDay()];
+        if (teacher_id) {
+          const allowed = timetable
+            .filter(t => String(t.class_id) === String(classId) && String(t.day_of_week) === String(dayName) && String(t.teacher_id) === String(teacher_id))
+            .map(t => Number(t.period_no));
+          setAllowedPeriods(new Set(allowed));
+        } else {
+          setAllowedPeriods(new Set());
+        }
+      } catch (e) {
+        setAllowedPeriods(new Set());
+      }
     } finally {
       setLoading(false);
     }
@@ -198,6 +222,23 @@ function TeacherAttendanceManager() {
       </div>
 
       <div className="bg-white border border-slate-200 rounded-md shadow-sm p-4">
+        {selectedClassId && (
+          <div className="mb-3 text-sm text-slate-700">
+            <strong>Timetable:</strong>{' '}
+            {(() => {
+              try {
+                const d = new Date(date + 'T00:00:00');
+                const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+                const dayName = days[d.getDay()];
+                const assigned = timetable
+                  .filter(t => String(t.class_id) === String(selectedClassId) && String(t.day_of_week) === String(dayName))
+                  .map(t => ({ period_no: t.period_no, subject: t.subject_name || '' }))
+                  .sort((a,b)=>a.period_no-b.period_no);
+                return assigned.length ? assigned.map(a=>`H${a.period_no}: ${a.subject || '—'}`).join(', ') : 'No periods assigned for this day.';
+              } catch (e) { return ''; }
+            })()}
+          </div>
+        )}
         <div className="overflow-x-auto border border-slate-200 rounded">
           <table className="min-w-full text-[11px]">
             <thead className="bg-sky-50 border-b border-slate-200">
@@ -211,14 +252,46 @@ function TeacherAttendanceManager() {
                 <th className="px-2 py-2 text-left font-medium text-slate-600">
                   Name
                 </th>
-                {periods.map(p => (
-                  <th
-                    key={p.id}
-                    className="px-2 py-2 text-center font-medium text-slate-600"
-                  >
-                    H{p.period_no}
-                  </th>
-                ))}
+                {periods.map(p => {
+                  // find subject from timetable for this class/date and period
+                  let subjectLabel = '';
+                  try {
+                    if (selectedClassId) {
+                      const d = new Date(date + 'T00:00:00');
+                      const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+                      const dayName = days[d.getDay()];
+                      const tt = timetable.find(
+                        t => String(t.class_id) === String(selectedClassId) && String(t.day_of_week) === String(dayName) && Number(t.period_no) === Number(p.period_no)
+                      );
+                      subjectLabel = tt && tt.subject_name ? tt.subject_name : '';
+                    }
+                  } catch (e) {
+                    subjectLabel = '';
+                  }
+                  // determine if this period is allowed for the logged-in teacher
+                  const saved = JSON.parse(localStorage.getItem('attendance_user') || '{}');
+                  const teacher_id = saved && saved.teacher ? saved.teacher.id : null;
+                  let isAllowed = false;
+                  try {
+                    const d = new Date(date + 'T00:00:00');
+                    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+                    const dayName = days[d.getDay()];
+                    const tt = timetable.find(
+                      t => String(t.class_id) === String(selectedClassId) && String(t.day_of_week) === String(dayName) && Number(t.period_no) === Number(p.period_no)
+                    );
+                    if (tt && teacher_id && String(tt.teacher_id) === String(teacher_id)) isAllowed = true;
+                  } catch (e) {}
+
+                  return (
+                    <th
+                      key={p.id}
+                      className={`px-2 py-2 text-center font-medium text-slate-600 ${isAllowed ? 'bg-amber-50' : ''}`}
+                    >
+                      <div className="text-sm">H{p.period_no}</div>
+                      <div className="text-[11px] text-slate-500 mt-1">{subjectLabel || '—'}</div>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white">
@@ -270,45 +343,62 @@ function TeacherAttendanceManager() {
                               </span>
                             )}
                             <div className="inline-flex gap-1">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setStatus(s.id, p.period_no, 'present')
-                                }
-                                className={`px-1.5 py-0.5 rounded border text-[10px] ${
-                                  status === 'present'
-                                    ? 'bg-emerald-600 text-white border-emerald-600'
-                                    : 'bg-white text-emerald-700 border-slate-300 hover:border-emerald-400'
-                                }`}
-                              >
-                                P
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setStatus(s.id, p.period_no, 'absent')
-                                }
-                                className={`px-1.5 py-0.5 rounded border text-[10px] ${
-                                  status === 'absent'
-                                    ? 'bg-red-600 text-white border-red-600'
-                                    : 'bg-white text-red-700 border-slate-300 hover:border-red-400'
-                                }`}
-                              >
-                                A
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setStatus(s.id, p.period_no, 'unmarked')
-                                }
-                                className={`px-1.5 py-0.5 rounded border text-[10px] ${
-                                  status === 'unmarked'
-                                    ? 'bg-slate-200 text-slate-800 border-slate-300'
-                                    : 'bg-white text-slate-700 border-slate-300 hover:border-slate-400'
-                                }`}
-                              >
-                                U
-                              </button>
+                              {(() => {
+                                // enable buttons only if this period is allowed for logged-in teacher
+                                const saved = JSON.parse(localStorage.getItem('attendance_user') || '{}');
+                                const teacher_id = saved && saved.teacher ? saved.teacher.id : null;
+                                let isAllowed = false;
+                                try {
+                                  const d = new Date(date + 'T00:00:00');
+                                  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+                                  const dayName = days[d.getDay()];
+                                  const tt = timetable.find(
+                                    t => String(t.class_id) === String(selectedClassId) && String(t.day_of_week) === String(dayName) && Number(t.period_no) === Number(p.period_no)
+                                  );
+                                  if (tt && teacher_id && String(tt.teacher_id) === String(teacher_id)) isAllowed = true;
+                                } catch (e) {}
+
+                                return (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => isAllowed && setStatus(s.id, p.period_no, 'present')}
+                                      disabled={!isAllowed}
+                                      className={`px-1.5 py-0.5 rounded border text-[10px] ${
+                                        status === 'present'
+                                          ? 'bg-emerald-600 text-white border-emerald-600'
+                                          : 'bg-white text-emerald-700 border-slate-300 hover:border-emerald-400'
+                                      } ${!isAllowed ? 'cursor-not-allowed opacity-60' : ''}`}
+                                    >
+                                      P
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => isAllowed && setStatus(s.id, p.period_no, 'absent')}
+                                      disabled={!isAllowed}
+                                      className={`px-1.5 py-0.5 rounded border text-[10px] ${
+                                        status === 'absent'
+                                          ? 'bg-red-600 text-white border-red-600'
+                                          : 'bg-white text-red-700 border-slate-300 hover:border-red-400'
+                                      } ${!isAllowed ? 'cursor-not-allowed opacity-60' : ''}`}
+                                    >
+                                      A
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => isAllowed && setStatus(s.id, p.period_no, 'unmarked')}
+                                      disabled={!isAllowed}
+                                      className={`px-1.5 py-0.5 rounded border text-[10px] ${
+                                        status === 'unmarked'
+                                          ? 'bg-slate-200 text-slate-800 border-slate-300'
+                                          : 'bg-white text-slate-700 border-slate-300 hover:border-slate-400'
+                                      } ${!isAllowed ? 'cursor-not-allowed opacity-60' : ''}`}
+                                    >
+                                      U
+                                    </button>
+                                  </>
+                                );
+                              })()}
                             </div>
                           </div>
                         </td>
