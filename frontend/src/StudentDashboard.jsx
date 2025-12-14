@@ -16,6 +16,7 @@ function StudentDashboard({ student, onLogout }) {
     confirm: ''
   });
   const [loading, setLoading] = useState(false);
+  const [subjectStats, setSubjectStats] = useState([]);
 
   const loadPeriods = async () => {
     const res = await api.get('/student/periods');
@@ -41,9 +42,27 @@ function StudentDashboard({ student, onLogout }) {
     }
   };
 
+
+  const loadSubjectStats = async () => {
+    try {
+      const params = {};
+      if (filter.from) params.from = filter.from;
+      if (filter.to) params.to = filter.to;
+
+      const res = await api.get(
+        `/student/subject-stats/${student.id}`,
+        { params }
+      );
+      setSubjectStats(res.data || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   useEffect(() => {
     loadPeriods();
     loadAttendance();
+    loadSubjectStats();
     // eslint-disable-next-line
   }, []);
 
@@ -57,6 +76,7 @@ function StudentDashboard({ student, onLogout }) {
 
   const applyFilter = () => {
     loadAttendance();
+    loadSubjectStats();
   };
 
   const changePassword = async e => {
@@ -104,7 +124,7 @@ function StudentDashboard({ student, onLogout }) {
 
   return (
     <div className="min-h-screen w-screen bg-slate-100">
-     <header className="h-14 flex items-center justify-between px-4 md:px-8 border-b border-slate-200 bg-sky-800 text-sky-50">
+      <header className="h-14 flex items-center justify-between px-4 md:px-8 border-b border-slate-200 bg-sky-800 text-sky-50">
         <div>
           <h1 className="text-sm font-semibold tracking-tight">
             Student dashboard
@@ -161,125 +181,202 @@ function StudentDashboard({ student, onLogout }) {
           </div>
         </section>
 
+
+
         {/* TABLE */}
         <section className="bg-white border border-slate-200 rounded-md shadow-sm p-4 space-y-3">
-  {/* Header + Filter */}
-  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-    <div>
-      <h2 className="text-sm font-semibold text-slate-800">
-        Period-wise attendance
-      </h2>
-      <p className="text-[11px] text-slate-500">
-        Choose a date range to view your attendance for each hour.
-      </p>
-    </div>
+          {/* Header + Filter */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-800">
+                Period-wise attendance
+              </h2>
+              <p className="text-[11px] text-slate-500">
+                Choose a date range to view your attendance for each hour.
+              </p>
+            </div>
 
-    <div className="flex flex-wrap items-center gap-2 text-xs">
-      <input
-        type="date"
-        name="from"
-        value={filter.from}
-        onChange={handleFilterChange}
-        className="px-3 py-1.5 rounded border border-slate-300 focus:ring-2 focus:ring-sky-500"
-      />
-      <span className="text-slate-500 text-[11px]">to</span>
-      <input
-        type="date"
-        name="to"
-        value={filter.to}
-        onChange={handleFilterChange}
-        className="px-3 py-1.5 rounded border border-slate-300 focus:ring-2 focus:ring-sky-500"
-      />
-      <button
-        onClick={applyFilter}
-        className="px-4 py-1.5 rounded bg-sky-700 text-white font-semibold hover:bg-sky-800"
-      >
-        Apply
-      </button>
-    </div>
-  </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <input
+                type="date"
+                name="from"
+                value={filter.from}
+                onChange={handleFilterChange}
+                className="px-3 py-1.5 rounded border border-slate-300 focus:ring-2 focus:ring-sky-500"
+              />
+              <span className="text-slate-500 text-[11px]">to</span>
+              <input
+                type="date"
+                name="to"
+                value={filter.to}
+                onChange={handleFilterChange}
+                className="px-3 py-1.5 rounded border border-slate-300 focus:ring-2 focus:ring-sky-500"
+              />
+              <button
+                onClick={applyFilter}
+                className="px-4 py-1.5 rounded bg-sky-700 text-white font-semibold hover:bg-sky-800"
+              >
+                Apply
+              </button>
+            </div>
+          </div>
 
-  {/* Table */}
-  <div className="overflow-x-auto border border-slate-200 rounded">
-    <table className="min-w-full text-xs divide-y divide-slate-200">
-      <thead className="bg-slate-200">
-        <tr>
-          <th className="px-3 py-2 text-left font-medium text-slate-700">
-            Date
-          </th>
-          {periods.map(p => (
-            <th
-              key={p.period_no}
-              className="px-3 py-2 text-center font-medium text-slate-700"
-            >
-              {p.label}
-            </th>
-          ))}
-        </tr>
-      </thead>
+          {/* Table */}
+          <div className="overflow-x-auto border border-slate-200 rounded">
+            <table className="min-w-full text-xs divide-y divide-slate-200">
+              <thead className="bg-slate-200">
+                <tr>
+                  <th className="px-3 py-2 text-left font-medium text-slate-700">
+                    Date
+                  </th>
+                  {periods.map(p => (
+                    <th
+                      key={p.period_no}
+                      className="px-3 py-2 text-center font-medium text-slate-700"
+                    >
+                      {p.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
 
-      <tbody className="bg-white divide-y divide-slate-200">
-        {loading && (
-          <tr>
-            <td
-              colSpan={1 + periods.length}
-              className="px-3 py-3 text-center text-slate-500"
-            >
-              Loading...
-            </td>
-          </tr>
-        )}
+              <tbody className="bg-white divide-y divide-slate-200">
+                {loading && (
+                  <tr>
+                    <td
+                      colSpan={1 + periods.length}
+                      className="px-3 py-3 text-center text-slate-500"
+                    >
+                      Loading...
+                    </td>
+                  </tr>
+                )}
 
-        {!loading &&
-          sortedDates.map(d => (
-            <tr key={d}>
-              <td className="px-3 py-2 font-medium text-slate-800">
-                {d}
-              </td>
+                {!loading &&
+                  sortedDates.map(d => (
+                    <tr key={d}>
+                      <td className="px-3 py-2 font-medium text-slate-800">
+                        {d}
+                      </td>
 
-              {periods.map(p => {
-                const status = attendanceByDate[d]?.[p.period_no];
-                return (
-                  <td key={p.period_no} className="py-2 text-center">
-                    {status === 'present' && (
-                      <span className="px-2 py-0.5 rounded bg-emerald-700 text-white">
-                        P
-                      </span>
-                    )}
-                    {status === 'absent' && (
-                      <span className="px-2 py-0.5 rounded bg-red-700 text-white">
-                        A
-                      </span>
-                    )}
-                    {!status && (
-                      <span className="px-2 py-0.5 rounded bg-slate-300 text-slate-700">
-                        U
-                      </span>
-                    )}
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
+                      {periods.map(p => {
+                        const status = attendanceByDate[d]?.[p.period_no];
+                        return (
+                          <td key={p.period_no} className="py-2 text-center">
+                            {status === 'present' && (
+                              <span className="px-2 py-0.5 rounded bg-emerald-700 text-white">
+                                P
+                              </span>
+                            )}
+                            {status === 'absent' && (
+                              <span className="px-2 py-0.5 rounded bg-red-700 text-white">
+                                A
+                              </span>
+                            )}
+                            {!status && (
+                              <span className="px-2 py-0.5 rounded bg-slate-300 text-slate-700">
+                                U
+                              </span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
 
-        {!loading && sortedDates.length === 0 && (
-          <tr>
-            <td
-              colSpan={1 + periods.length}
-              className="px-3 py-3 text-center text-slate-500"
-            >
-              No attendance records for the selected dates.
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
-  </div>
-</section>
+                {!loading && sortedDates.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={1 + periods.length}
+                      className="px-3 py-3 text-center text-slate-500"
+                    >
+                      No attendance records for the selected dates.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* SUBJECT / PERIOD SUMMARY */}
+        <section className="bg-white border border-slate-200 rounded-md shadow-sm p-4 space-y-3">
+          {/* Header */}
+          <div>
+            <h2 className="text-sm font-semibold text-slate-800">
+              Subject-wise attendance
+            </h2>
+            <p className="text-[11px] text-slate-500">
+              Overview of your attendance per subject.
+            </p>
+          </div>
+
+          {/* Table */}
+          <div className="overflow-x-auto border border-slate-200 rounded">
+            <table className="min-w-full text-xs divide-y divide-slate-200">
+              <thead className="bg-slate-200">
+                <tr>
+                  <th className="px-3 py-2 text-left font-medium text-slate-700">
+                    Subject
+                  </th>
+                  <th className="px-3 py-2 text-center font-medium text-slate-700">
+                    Present
+                  </th>
+                  <th className="px-3 py-2 text-center font-medium text-slate-700">
+                    Total
+                  </th>
+                  <th className="px-3 py-2 text-center font-medium text-slate-700">
+                    Percentage
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody className="bg-white divide-y divide-slate-200">
+                {loading && (
+                  <tr>
+                    <td
+                      colSpan="4"
+                      className="px-3 py-3 text-center text-slate-500"
+                    >
+                      Loading...
+                    </td>
+                  </tr>
+                )}
+
+                {!loading &&
+                  subjectStats.map((s, i) => (
+                    <tr key={i}>
+                      <td className="px-3 py-2 font-medium text-slate-800">
+                        {s.subject}
+                      </td>
+                      <td className="px-3 py-2 text-center text-emerald-700">
+                        {s.present}
+                      </td>
+                      <td className="px-3 py-2 text-center">{s.total}</td>
+                      <td className="px-3 py-2 text-center font-semibold">
+                        {s.percentage}%
+                      </td>
+                    </tr>
+                  ))}
+
+                {!loading && subjectStats.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan="4"
+                      className="px-3 py-3 text-center text-slate-500"
+                    >
+                      No subject attendance available
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
 
         {/* PASSWORD */}
-         <section className="bg-white border border-slate-200 rounded-md shadow-sm p-4 space-y-3">
+        <section className="bg-white border border-slate-200 rounded-md shadow-sm p-4 space-y-3">
           <h2 className="text-sm font-semibold text-slate-800">
             Change password
           </h2>
