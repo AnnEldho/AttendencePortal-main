@@ -285,7 +285,7 @@ function TeacherAttendanceManager({ date: propDate, setDate: propSetDate }) {
                   return (
                     <th
                       key={p.id}
-                      className={`px-2 py-2 text-center font-medium text-slate-600 ${isAllowed ? 'bg-amber-50' : ''}`}
+                      className={`px-2 py-2 text-center font-medium text-slate-600 ${isAllowed ? 'bg-red-500 text-white rounded-md' : 'opacity-60'}`}
                     >
                       <div className="text-sm">H{p.period_no}</div>
                       <div className="text-[11px] text-slate-500 mt-1">{subjectLabel || '—'}</div>
