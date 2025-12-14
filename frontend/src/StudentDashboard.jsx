@@ -2,8 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import api from './api';
 
 function StudentDashboard({ student, onLogout }) {
-  const [rows, setRows] = useState([]);       // raw period-wise attendance
-  const [periods, setPeriods] = useState([]); // from periods table
+
+  // ✅ PREVENT BLANK SCREEN
+  if (!student) {
+    return <div className="p-4 text-slate-700">Loading student...</div>;
+  }
+
+  const [rows, setRows] = useState([]);
+  const [periods, setPeriods] = useState([]);
   const [filter, setFilter] = useState({ from: '', to: '' });
   const [passwords, setPasswords] = useState({
     new_password: '',
@@ -22,11 +28,14 @@ function StudentDashboard({ student, onLogout }) {
       const params = {};
       if (filter.from) params.from = filter.from;
       if (filter.to) params.to = filter.to;
+
       const res = await api.get(
         `/student/attendance-periodwise/${student.id}`,
         { params }
       );
       setRows(res.data || []);
+    } catch (e) {
+      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -35,7 +44,7 @@ function StudentDashboard({ student, onLogout }) {
   useEffect(() => {
     loadPeriods();
     loadAttendance();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line
   }, []);
 
   const handleFilterChange = e => {
@@ -61,12 +70,11 @@ function StudentDashboard({ student, onLogout }) {
     setPasswords({ new_password: '', confirm: '' });
   };
 
-  // date -> { period_no -> status }
+  // date → period map
   const attendanceByDate = useMemo(() => {
     const map = {};
     rows.forEach(r => {
-      // assume backend returns pure 'YYYY-MM-DD' string; if it sends full ISO, use r.date.slice(0,10)
-      const d = typeof r.date === 'string' ? r.date.slice(0, 10) : r.date;
+      const d = r.date.slice(0, 10);
       if (!map[d]) map[d] = {};
       map[d][r.period_no] = r.status;
     });
@@ -77,12 +85,16 @@ function StudentDashboard({ student, onLogout }) {
     let present = 0;
     let absent = 0;
     rows.forEach(r => {
-      if (r.status === 'present') present += 1;
-      if (r.status === 'absent') absent += 1;
+      if (r.status === 'present') present++;
+      if (r.status === 'absent') absent++;
     });
     const total = present + absent;
-    const percentage = total ? Math.round((present / total) * 100) : 0;
-    return { present, absent, total, percentage };
+    return {
+      present,
+      absent,
+      total,
+      percentage: total ? Math.round((present / total) * 100) : 0
+    };
   }, [rows]);
 
   const sortedDates = useMemo(
@@ -92,7 +104,7 @@ function StudentDashboard({ student, onLogout }) {
 
   return (
     <div className="min-h-screen w-screen bg-slate-100">
-      <header className="h-14 flex items-center justify-between px-4 md:px-8 border-b border-slate-200 bg-sky-800 text-sky-50">
+     <header className="h-14 flex items-center justify-between px-4 md:px-8 border-b border-slate-200 bg-sky-800 text-sky-50">
         <div>
           <h1 className="text-sm font-semibold tracking-tight">
             Student dashboard
@@ -149,119 +161,125 @@ function StudentDashboard({ student, onLogout }) {
           </div>
         </section>
 
+        {/* TABLE */}
         <section className="bg-white border border-slate-200 rounded-md shadow-sm p-4 space-y-3">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold text-slate-800">
-                Period-wise attendance
-              </h2>
-              <p className="text-[11px] text-slate-500">
-                Choose a date range to view your attendance for each hour.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              <input
-                type="date"
-                name="from"
-                value={filter.from}
-                onChange={handleFilterChange}
-                className="px-3 py-1.5 rounded border border-slate-300 text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
-              />
-              <span className="text-slate-500 text-[11px]">to</span>
-              <input
-                type="date"
-                name="to"
-                value={filter.to}
-                onChange={handleFilterChange}
-                className="px-3 py-1.5 rounded border border-slate-300 text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
-              />
-              <button
-                type="button"
-                onClick={applyFilter}
-                className="inline-flex items-center justify-center px-4 py-1.5 rounded bg-sky-700 text-white font-semibold hover:bg-sky-800"
-              >
-                Apply
-              </button>
-            </div>
-          </div>
+  {/* Header + Filter */}
+  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+    <div>
+      <h2 className="text-sm font-semibold text-slate-800">
+        Period-wise attendance
+      </h2>
+      <p className="text-[11px] text-slate-500">
+        Choose a date range to view your attendance for each hour.
+      </p>
+    </div>
 
-          <div className="overflow-x-auto border border-slate-200 rounded">
-            <table className="min-w-full divide-y divide-slate-200 text-xs">
-              <thead className="bg-sky-50">
-                <tr>
-                  <th className="px-3 py-2 text-left font-medium text-slate-600">
-                    Date
-                  </th>
-                  {periods.map(p => (
-                    <th
-                      key={p.period_no}
-                      className="px-3 py-2 text-center font-medium text-slate-600"
-                    >
-                      {p.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 bg-white">
-                {loading && (
-                  <tr>
-                    <td
-                      colSpan={1 + periods.length}
-                      className="px-3 py-3 text-center text-slate-500"
-                    >
-                      Loading...
-                    </td>
-                  </tr>
-                )}
-                {!loading &&
-                  sortedDates.map(d => (
-                    <tr key={d}>
-                      <td className="px-3 py-2 text-slate-800 whitespace-nowrap">
-                        {d}
-                      </td>
-                      {periods.map(p => {
-                        const status = attendanceByDate[d]?.[p.period_no];
-                        return (
-                          <td
-                            key={p.period_no}
-                            className="px-3 py-2 text-center whitespace-nowrap"
-                          >
-                            {status === 'present' && (
-                              <span className="inline-flex px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-300">
-                                P
-                              </span>
-                            )}
-                            {status === 'absent' && (
-                              <span className="inline-flex px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-300">
-                                A
-                              </span>
-                            )}
-                            {!status && (
-                              <span className="inline-flex px-2 py-0.5 rounded-full bg-slate-50 text-slate-500 border border-slate-300">
-                                U
-                              </span>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                {!loading && sortedDates.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={1 + periods.length}
-                      className="px-3 py-3 text-center text-slate-500"
-                    >
-                      No attendance records for the selected dates.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
+    <div className="flex flex-wrap items-center gap-2 text-xs">
+      <input
+        type="date"
+        name="from"
+        value={filter.from}
+        onChange={handleFilterChange}
+        className="px-3 py-1.5 rounded border border-slate-300 focus:ring-2 focus:ring-sky-500"
+      />
+      <span className="text-slate-500 text-[11px]">to</span>
+      <input
+        type="date"
+        name="to"
+        value={filter.to}
+        onChange={handleFilterChange}
+        className="px-3 py-1.5 rounded border border-slate-300 focus:ring-2 focus:ring-sky-500"
+      />
+      <button
+        onClick={applyFilter}
+        className="px-4 py-1.5 rounded bg-sky-700 text-white font-semibold hover:bg-sky-800"
+      >
+        Apply
+      </button>
+    </div>
+  </div>
 
-        <section className="bg-white border border-slate-200 rounded-md shadow-sm p-4 space-y-3">
+  {/* Table */}
+  <div className="overflow-x-auto border border-slate-200 rounded">
+    <table className="min-w-full text-xs divide-y divide-slate-200">
+      <thead className="bg-slate-200">
+        <tr>
+          <th className="px-3 py-2 text-left font-medium text-slate-700">
+            Date
+          </th>
+          {periods.map(p => (
+            <th
+              key={p.period_no}
+              className="px-3 py-2 text-center font-medium text-slate-700"
+            >
+              {p.label}
+            </th>
+          ))}
+        </tr>
+      </thead>
+
+      <tbody className="bg-white divide-y divide-slate-200">
+        {loading && (
+          <tr>
+            <td
+              colSpan={1 + periods.length}
+              className="px-3 py-3 text-center text-slate-500"
+            >
+              Loading...
+            </td>
+          </tr>
+        )}
+
+        {!loading &&
+          sortedDates.map(d => (
+            <tr key={d}>
+              <td className="px-3 py-2 font-medium text-slate-800">
+                {d}
+              </td>
+
+              {periods.map(p => {
+                const status = attendanceByDate[d]?.[p.period_no];
+                return (
+                  <td key={p.period_no} className="py-2 text-center">
+                    {status === 'present' && (
+                      <span className="px-2 py-0.5 rounded bg-emerald-700 text-white">
+                        P
+                      </span>
+                    )}
+                    {status === 'absent' && (
+                      <span className="px-2 py-0.5 rounded bg-red-700 text-white">
+                        A
+                      </span>
+                    )}
+                    {!status && (
+                      <span className="px-2 py-0.5 rounded bg-slate-300 text-slate-700">
+                        U
+                      </span>
+                    )}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+
+        {!loading && sortedDates.length === 0 && (
+          <tr>
+            <td
+              colSpan={1 + periods.length}
+              className="px-3 py-3 text-center text-slate-500"
+            >
+              No attendance records for the selected dates.
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+
+        {/* PASSWORD */}
+         <section className="bg-white border border-slate-200 rounded-md shadow-sm p-4 space-y-3">
           <h2 className="text-sm font-semibold text-slate-800">
             Change password
           </h2>
