@@ -91,7 +91,7 @@ function App() {
         </div>
         <div>
           <div className="text-sm font-semibold tracking-tight">
-             College Attendance Portal
+             AttendEase - College Attendance Portal
           </div>
           <div className="text-[11px] text-sky-100/90">
             APJ Abdul Kalam Technological University – Internal Attendance

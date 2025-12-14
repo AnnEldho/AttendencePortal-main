@@ -16,7 +16,7 @@ function TeacherDashboard({ teacher, onLogout }) {
       <aside className="hidden md:flex md:flex-col w-60 bg-sky-900 text-sky-50 shadow-md">
         <div className="h-14 flex items-center px-4 border-b border-sky-800">
           <span className="text-lg font-semibold tracking-tight">
-             Attendance
+            AttendEase 
           </span>
         </div>
         <nav className="flex-1 px-3 py-4 space-y-1 text-xs">
