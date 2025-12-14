@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Dec 13, 2025 at 12:03 PM
+-- Generation Time: Dec 14, 2025 at 03:28 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -100,7 +100,13 @@ INSERT INTO `attendance` (`id`, `student_id`, `class_id`, `date`, `period_no`, `
 (71, 4, 2, '2025-12-12', 5, 'absent', NULL, NULL),
 (72, 2, 1, '2025-12-15', 1, 'present', NULL, NULL),
 (73, 1, 1, '2025-12-15', 1, 'present', NULL, NULL),
-(76, 5, 1, '2025-12-15', 1, 'present', NULL, NULL);
+(76, 5, 1, '2025-12-15', 1, 'present', NULL, NULL),
+(78, 1, 1, '2025-12-15', 5, 'absent', NULL, NULL),
+(84, 1, 1, '2025-12-01', 5, 'absent', NULL, NULL),
+(90, 1, 1, '2025-12-04', 5, 'present', NULL, NULL),
+(94, 1, 1, '2025-12-05', 5, 'present', NULL, NULL),
+(97, 1, 1, '2025-12-02', 2, 'present', NULL, NULL),
+(98, 1, 1, '2025-12-02', 3, 'present', NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -328,7 +334,7 @@ ALTER TABLE `timetable`
 -- AUTO_INCREMENT for table `attendance`
 --
 ALTER TABLE `attendance`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=77;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=102;
 
 --
 -- AUTO_INCREMENT for table `classes`
